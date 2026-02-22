@@ -1,0 +1,106 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Virtual Environments
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+secrets/
+*.key
+*.pem
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# Home Assistant
+homeassistant/.storage/
+homeassistant/home-assistant.log
+homeassistant/home-assistant_v2.db*
+homeassistant/*.db-shm
+homeassistant/*.db-wal
+homeassistant/deps/
+homeassistant/tts/
+homeassistant/.cloud/
+homeassistant/secrets.yaml
+
+# Mosquitto MQTT
+mosquitto/data/
+mosquitto/log/
+
+# ChromaDB
+chromadb/chroma.sqlite3
+chromadb/chroma.sqlite3-shm
+chromadb/chroma.sqlite3-wal
+chromadb/data/
+
+# The Brain
+brain/__pycache__/
+brain/*.log
+brain/.pytest_cache/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.bak
+*.tmp
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+temp/
+tmp/
