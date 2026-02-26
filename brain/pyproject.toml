@@ -1,0 +1,20 @@
+[project]
+name = "home-cortex-brain"
+version = "0.1.0"
+description = "The Brain - Central intelligence layer for home automation"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "aiomqtt",
+    "chromadb",
+    "httpx",
+    "pydantic-settings",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+]
