@@ -1,0 +1,56 @@
+services:
+  brain:
+    build: ./brain
+    container_name: home-cortex-brain
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      - mosquitto
+      - chromadb
+    restart: unless-stopped
+    networks:
+      - home-cortex
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: home-cortex-ha
+    network_mode: host
+    volumes:
+      - ./homeassistant:/config
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: home-cortex-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    restart: unless-stopped
+    networks:
+      - home-cortex
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: home-cortex-chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+    restart: unless-stopped
+    networks:
+      - home-cortex
+
+networks:
+  home-cortex:
+    driver: bridge
+
+volumes:
+  mosquitto-data:
+  mosquitto-log:
+  chromadb-data:
