@@ -1,4 +1,3 @@
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -84,3 +83,18 @@ class TestEventStoreSearchEvents:
             mock_collection.query.assert_called_once_with(query_texts=["light"], n_results=3)
             assert len(results) == 1
             assert results[0]["intent"] == "toggle_light"
+
+    def test_search_events_returns_empty_list_when_no_results(self, test_settings, mock_chroma_client, mock_collection):
+        mock_collection.query.return_value = {
+            "ids": [],
+            "documents": [],
+            "metadatas": [],
+        }
+
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client):
+            from brain.chromadb_store import EventStore
+
+            store = EventStore(test_settings)
+            results = store.search_events("nonexistent")
+
+            assert results == []

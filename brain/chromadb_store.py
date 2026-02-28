@@ -10,6 +10,8 @@ from brain.config import Settings
 
 logger = logging.getLogger(__name__)
 
+COLLECTION_NAME = "webhook_events"
+
 
 class EventStore:
     """Stores webhook events in ChromaDB for semantic search."""
@@ -19,7 +21,16 @@ class EventStore:
             host=settings.chromadb_host,
             port=settings.chromadb_port,
         )
-        self._collection = self._client.get_or_create_collection("webhook_events")
+        try:
+            self._collection = self._client.get_or_create_collection(COLLECTION_NAME)
+        except Exception as exc:
+            logger.error(
+                "EventStore failed to connect to ChromaDB at %s:%s: %s",
+                settings.chromadb_host,
+                settings.chromadb_port,
+                exc,
+            )
+            raise
         logger.info(
             "EventStore connected (host=%s:%s)",
             settings.chromadb_host,
@@ -44,8 +55,10 @@ class EventStore:
         logger.info("Stored event %s (intent=%s, source=%s)", event_id, intent, source)
         return event_id
 
-    def search_events(self, query: str, n_results: int = 5) -> list[dict]:
+    def search_events(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:
         results = self._collection.query(query_texts=[query], n_results=n_results)
+        if not results["ids"]:
+            return []
         return [
             {**meta, "id": id_, "document": doc}
             for id_, doc, meta in zip(
