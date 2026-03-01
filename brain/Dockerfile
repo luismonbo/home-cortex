@@ -9,8 +9,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy application code into brain/ package
-COPY __init__.py main.py config.py mqtt.py chromadb_store.py ./brain/
-COPY routers/ ./brain/routers/
+COPY . ./brain/
 RUN uv sync --frozen --no-dev
 
 CMD ["uv", "run", "uvicorn", "brain.main:app", "--host", "0.0.0.0", "--port", "8000"]
