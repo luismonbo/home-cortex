@@ -68,3 +68,45 @@ class TestPostHooksEvent:
         response = client.post("/hooks/event", json={"intent": "toggle_light"})
         assert response.status_code == 503
         assert response.json()["detail"] == "Event storage unavailable"
+
+
+class TestPostHooksSearch:
+    def _make_client(self, mock_event_store=None):
+        if mock_event_store is None:
+            mock_event_store = MagicMock()
+            mock_event_store.store_event.return_value = "test-uuid-123"
+
+        with patch("brain.main.MQTTListener") as MockListener, \
+             patch("brain.main.EventStore", return_value=mock_event_store):
+            instance = MockListener.return_value
+            instance.start = AsyncMock()
+            instance.stop = AsyncMock()
+
+            with TestClient(app) as client:
+                return client, mock_event_store
+
+    def test_search_returns_results(self):
+        mock_store = MagicMock()
+        mock_store.store_event.return_value = "test-uuid-123"
+        mock_store.search_events.return_value = [
+            {"id": "id1", "intent": "toggle_light", "source": "voice",
+             "timestamp": "2026-02-28T12:00:00Z", "document": "intent: toggle_light"}
+        ]
+        client, _ = self._make_client(mock_event_store=mock_store)
+        response = client.post("/hooks/search", json={"query": "light"})
+        assert response.status_code == 200
+        assert len(response.json()["results"]) == 1
+        mock_store.search_events.assert_called_once_with(query="light", n_results=5)
+
+    def test_search_returns_503_on_failure(self):
+        mock_store = MagicMock()
+        mock_store.store_event.return_value = "test-uuid-123"
+        mock_store.search_events.side_effect = Exception("ChromaDB down")
+        client, _ = self._make_client(mock_event_store=mock_store)
+        response = client.post("/hooks/search", json={"query": "light"})
+        assert response.status_code == 503
+
+    def test_search_missing_query_returns_422(self):
+        client, _ = self._make_client()
+        response = client.post("/hooks/search", json={})
+        assert response.status_code == 422
