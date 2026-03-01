@@ -37,6 +37,18 @@ class TestEventStoreInit:
             store = EventStore(test_settings)
             mock_chroma_client.get_or_create_collection.assert_called_once_with("webhook_events")
 
+    def test_raises_and_logs_on_connection_failure(self, test_settings, caplog):
+        failing_client = MagicMock()
+        failing_client.get_or_create_collection.side_effect = Exception("Connection refused")
+
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=failing_client):
+            from brain.chromadb_store import EventStore
+
+            with pytest.raises(Exception, match="Connection refused"):
+                EventStore(test_settings)
+
+            assert "failed to connect to ChromaDB" in caplog.text
+
 
 class TestEventStoreStoreEvent:
     def test_store_event_returns_string_id(self, test_settings, mock_chroma_client):

@@ -60,3 +60,11 @@ class TestPostHooksEvent:
         client, _ = self._make_client()
         response = client.post("/hooks/event", json={"source": "voice"})
         assert response.status_code == 422
+
+    def test_returns_503_when_store_fails(self):
+        mock_store = MagicMock()
+        mock_store.store_event.side_effect = Exception("ChromaDB unreachable")
+        client, _ = self._make_client(mock_event_store=mock_store)
+        response = client.post("/hooks/event", json={"intent": "toggle_light"})
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Event storage unavailable"
