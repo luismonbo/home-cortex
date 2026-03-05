@@ -4,10 +4,11 @@ from langgraph.prebuilt import create_react_agent
 from brain.agents.base import AgentDefinition
 from brain.agents.homeassistant.prompts import ROUTING_DESCRIPTION, SYSTEM_PROMPT
 from brain.agents.homeassistant.tools import make_tools
+from brain.config import settings
 from brain.services.ha_client import HAClient
 
 
-def build_ha_agent(ha_client: HAClient, model_name: str = "gpt-4o-mini") -> AgentDefinition:
+def build_ha_agent(ha_client: HAClient, model_name: str = settings.ha_model) -> AgentDefinition:
     tools = make_tools(ha_client)
     llm = ChatOpenAI(model=model_name)
     react_agent = create_react_agent(llm, tools, prompt=SYSTEM_PROMPT)
