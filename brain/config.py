@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     ha_base_url: str = "http://homeassistant:8123"
     graph_pattern: str = "supervisor"
+    router_model: str = "gpt-5-nano"
+    ha_model: str = "gpt-5-nano"
 
 
 settings = Settings()

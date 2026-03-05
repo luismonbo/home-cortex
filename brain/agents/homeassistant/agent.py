@@ -2,7 +2,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
 from brain.agents.base import AgentDefinition
-from brain.agents.homeassistant.prompts import SYSTEM_PROMPT
+from brain.agents.homeassistant.prompts import ROUTING_DESCRIPTION, SYSTEM_PROMPT
 from brain.agents.homeassistant.tools import make_tools
 from brain.services.ha_client import HAClient
 
@@ -18,7 +18,7 @@ def build_ha_agent(ha_client: HAClient, model_name: str = "gpt-4o-mini") -> Agen
 
     return AgentDefinition(
         name="homeassistant",
-        description="Controls Home Assistant smart home devices — toggle lights, check states, call services.",
+        description=ROUTING_DESCRIPTION,
         node_fn=node,
         tools=tools,
         model_name=model_name,

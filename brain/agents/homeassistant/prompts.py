@@ -4,3 +4,8 @@ SYSTEM_PROMPT = (
     "When asked to control a device, use the available tools. "
     "Always confirm the action you took and the resulting state."
 )
+
+ROUTING_DESCRIPTION = (
+    "Controls Home Assistant smart home devices — "
+    "toggle lights, check entity states, and call services."
+)
