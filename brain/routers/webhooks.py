@@ -2,7 +2,10 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
+from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
+
+from brain.graph.state import CortexState
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,17 @@ async def receive_event(event: WebhookEvent, request: Request):
         logger.exception("Failed to store event (intent=%s, source=%s)", event.intent, event.source)
         raise HTTPException(status_code=503, detail="Event storage unavailable")
     logger.info("Webhook received: intent=%s source=%s id=%s", event.intent, event.source, event_id)
+
+    state = CortexState(
+        messages=[HumanMessage(content=event.intent)],
+        intent=event.intent,
+        source=event.source,
+        event_id=event_id,
+        next_agent="",
+        result="",
+    )
+    request.app.state.runner.dispatch(state)
+
     return WebhookResponse(status="received", event_id=event_id)
 
 

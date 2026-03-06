@@ -79,6 +79,28 @@ class TestPostHooksEvent:
         assert response.status_code == 503
         assert response.json()["detail"] == "Event storage unavailable"
 
+    def test_dispatches_to_runner_after_store(self):
+        with make_test_client() as (client, _, mock_runner):
+            client.post("/hooks/event", json={
+                "intent": "Turn on the lights",
+                "payload": {"entity": "light.bedroom"},
+                "source": "voice",
+            })
+        mock_runner.dispatch.assert_called_once()
+        state = mock_runner.dispatch.call_args[0][0]
+        assert state["intent"] == "Turn on the lights"
+        assert state["source"] == "voice"
+        assert state["next_agent"] == ""
+        assert state["result"] == ""
+        assert len(state["messages"]) == 1
+
+    def test_does_not_dispatch_when_store_fails(self):
+        mock_store = MagicMock()
+        mock_store.store_event.side_effect = Exception("ChromaDB unreachable")
+        with make_test_client(mock_event_store=mock_store) as (client, _, mock_runner):
+            client.post("/hooks/event", json={"intent": "toggle_light"})
+        mock_runner.dispatch.assert_not_called()
+
 
 class TestPostHooksSearch:
     def test_search_returns_results(self):
