@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -5,41 +6,50 @@ from fastapi.testclient import TestClient
 from brain.main import app
 
 
+@contextmanager
+def make_test_client(mock_event_store=None):
+    if mock_event_store is None:
+        mock_event_store = MagicMock()
+        mock_event_store.store_event.return_value = "test-uuid-123"
+
+    mock_runner = MagicMock()
+    mock_runner.dispatch = MagicMock()
+    mock_runner.shutdown = AsyncMock()
+
+    with patch("brain.main.MQTTListener") as MockListener, \
+         patch("brain.main.EventStore", return_value=mock_event_store), \
+         patch("brain.main.HAClient"), \
+         patch("brain.main.build_ha_agent"), \
+         patch("brain.main.build_supervisor_graph"), \
+         patch("brain.main.GraphRunner", return_value=mock_runner):
+        instance = MockListener.return_value
+        instance.start = AsyncMock()
+        instance.stop = AsyncMock()
+
+        with TestClient(app) as client:
+            yield client, mock_event_store, mock_runner
+
+
 class TestPostHooksEvent:
-    def _make_client(self, mock_event_store=None):
-        """Create a test client with mocked lifespan dependencies."""
-        if mock_event_store is None:
-            mock_event_store = MagicMock()
-            mock_event_store.store_event.return_value = "test-uuid-123"
-
-        with patch("brain.main.MQTTListener") as MockListener, \
-             patch("brain.main.EventStore", return_value=mock_event_store):
-            instance = MockListener.return_value
-            instance.start = AsyncMock()
-            instance.stop = AsyncMock()
-
-            with TestClient(app) as client:
-                return client, mock_event_store
-
     def test_valid_event_returns_201(self):
-        client, _ = self._make_client()
-        response = client.post("/hooks/event", json={
-            "intent": "toggle_light",
-            "payload": {"entity": "light.bedroom"},
-            "source": "voice",
-        })
+        with make_test_client() as (client, _, __):
+            response = client.post("/hooks/event", json={
+                "intent": "toggle_light",
+                "payload": {"entity": "light.bedroom"},
+                "source": "voice",
+            })
         assert response.status_code == 201
         data = response.json()
         assert data["status"] == "received"
         assert "event_id" in data
 
     def test_calls_event_store(self):
-        client, mock_store = self._make_client()
-        client.post("/hooks/event", json={
-            "intent": "toggle_light",
-            "payload": {"entity": "light.bedroom"},
-            "source": "voice",
-        })
+        with make_test_client() as (client, mock_store, _):
+            client.post("/hooks/event", json={
+                "intent": "toggle_light",
+                "payload": {"entity": "light.bedroom"},
+                "source": "voice",
+            })
         mock_store.store_event.assert_called_once_with(
             intent="toggle_light",
             payload={"entity": "light.bedroom"},
@@ -47,8 +57,8 @@ class TestPostHooksEvent:
         )
 
     def test_minimal_payload_uses_defaults(self):
-        client, mock_store = self._make_client()
-        response = client.post("/hooks/event", json={"intent": "ping"})
+        with make_test_client() as (client, mock_store, _):
+            response = client.post("/hooks/event", json={"intent": "ping"})
         assert response.status_code == 201
         mock_store.store_event.assert_called_once_with(
             intent="ping",
@@ -57,34 +67,20 @@ class TestPostHooksEvent:
         )
 
     def test_missing_intent_returns_422(self):
-        client, _ = self._make_client()
-        response = client.post("/hooks/event", json={"source": "voice"})
+        with make_test_client() as (client, _, __):
+            response = client.post("/hooks/event", json={"source": "voice"})
         assert response.status_code == 422
 
     def test_returns_503_when_store_fails(self):
         mock_store = MagicMock()
         mock_store.store_event.side_effect = Exception("ChromaDB unreachable")
-        client, _ = self._make_client(mock_event_store=mock_store)
-        response = client.post("/hooks/event", json={"intent": "toggle_light"})
+        with make_test_client(mock_event_store=mock_store) as (client, _, __):
+            response = client.post("/hooks/event", json={"intent": "toggle_light"})
         assert response.status_code == 503
         assert response.json()["detail"] == "Event storage unavailable"
 
 
 class TestPostHooksSearch:
-    def _make_client(self, mock_event_store=None):
-        if mock_event_store is None:
-            mock_event_store = MagicMock()
-            mock_event_store.store_event.return_value = "test-uuid-123"
-
-        with patch("brain.main.MQTTListener") as MockListener, \
-             patch("brain.main.EventStore", return_value=mock_event_store):
-            instance = MockListener.return_value
-            instance.start = AsyncMock()
-            instance.stop = AsyncMock()
-
-            with TestClient(app) as client:
-                return client, mock_event_store
-
     def test_search_returns_results(self):
         mock_store = MagicMock()
         mock_store.store_event.return_value = "test-uuid-123"
@@ -92,8 +88,8 @@ class TestPostHooksSearch:
             {"id": "id1", "intent": "toggle_light", "source": "voice",
              "timestamp": "2026-02-28T12:00:00Z", "document": "intent: toggle_light"}
         ]
-        client, _ = self._make_client(mock_event_store=mock_store)
-        response = client.post("/hooks/search", json={"query": "light"})
+        with make_test_client(mock_event_store=mock_store) as (client, _, __):
+            response = client.post("/hooks/search", json={"query": "light"})
         assert response.status_code == 200
         assert len(response.json()["results"]) == 1
         mock_store.search_events.assert_called_once_with(query="light", n_results=5)
@@ -102,11 +98,11 @@ class TestPostHooksSearch:
         mock_store = MagicMock()
         mock_store.store_event.return_value = "test-uuid-123"
         mock_store.search_events.side_effect = Exception("ChromaDB down")
-        client, _ = self._make_client(mock_event_store=mock_store)
-        response = client.post("/hooks/search", json={"query": "light"})
+        with make_test_client(mock_event_store=mock_store) as (client, _, __):
+            response = client.post("/hooks/search", json={"query": "light"})
         assert response.status_code == 503
 
     def test_search_missing_query_returns_422(self):
-        client, _ = self._make_client()
-        response = client.post("/hooks/search", json={})
+        with make_test_client() as (client, _, __):
+            response = client.post("/hooks/search", json={})
         assert response.status_code == 422
