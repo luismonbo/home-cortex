@@ -93,6 +93,7 @@ class TestPostHooksEvent:
         assert state["next_agent"] == ""
         assert state["result"] == ""
         assert len(state["messages"]) == 1
+        assert state["event_id"] == "test-uuid-123"
 
     def test_does_not_dispatch_when_store_fails(self):
         mock_store = MagicMock()

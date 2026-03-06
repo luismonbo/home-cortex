@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from langchain_core.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
@@ -25,6 +26,7 @@ class TestBuildSupervisor:
         assert isinstance(graph, CompiledStateGraph)
 
 
+@pytest.mark.asyncio
 class TestRouterNode:
     async def test_sets_next_agent_on_known_response(self):
         agent = make_agent("homeassistant", "Controls smart home devices.")
