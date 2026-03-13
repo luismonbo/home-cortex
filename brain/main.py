@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     event_store = EventStore(settings)
     app.state.event_store = event_store
 
-    ha_client = HAClient(settings)
+    ha_client = HAClient(settings.ha_base_url, settings.ha_token)
     ha_agent = build_ha_agent(ha_client, model_name=settings.ha_model)
     graph = build_supervisor_graph([ha_agent], router_model=settings.router_model)
     runner = GraphRunner(graph)
