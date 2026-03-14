@@ -13,6 +13,7 @@ def test_health_endpoint():
          patch("brain.main.EventStore", return_value=MagicMock()), \
          patch("brain.main.HAClient"), \
          patch("brain.main.build_ha_agent"), \
+         patch("brain.main.build_memory_agent"), \
          patch("brain.main.build_supervisor_graph"), \
          patch("brain.main.GraphRunner", return_value=mock_runner):
         instance = MockListener.return_value

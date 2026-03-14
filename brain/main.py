@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from brain.agents.homeassistant.agent import build_ha_agent
+from brain.agents.memory.agent import build_memory_agent
 from brain.chromadb_store import EventStore
 from brain.config import settings
 from brain.graph.factory import build_supervisor_graph
@@ -25,8 +26,9 @@ async def lifespan(app: FastAPI):
     app.state.event_store = event_store
 
     ha_client = HAClient(settings.ha_base_url, settings.ha_token)
-    ha_agent = build_ha_agent(ha_client, model_name=settings.ha_model)
-    graph = build_supervisor_graph([ha_agent], router_model=settings.router_model)
+    ha_agent = build_ha_agent(ha_client, event_store=event_store, model_name=settings.ha_model)
+    memory_agent = build_memory_agent(event_store)
+    graph = build_supervisor_graph([ha_agent, memory_agent], router_model=settings.router_model)
     runner = GraphRunner(graph)
     app.state.runner = runner
 
