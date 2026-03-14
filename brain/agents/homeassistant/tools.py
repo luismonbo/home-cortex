@@ -1,9 +1,10 @@
 from langchain_core.tools import tool
 
+from brain.chromadb_store import EventStore
 from brain.services.ha_client import HAClient
 
 
-def make_tools(ha_client: HAClient) -> list:
+def make_tools(ha_client: HAClient, event_store: EventStore | None = None) -> list:
     @tool
     async def toggle_entity(entity_id: str) -> str:
         """Toggle a Home Assistant entity on or off."""
@@ -31,4 +32,10 @@ def make_tools(ha_client: HAClient) -> list:
         result = await ha_client.call_service(domain, service, entity_id, extra)
         return f"Called {domain}/{service} on {entity_id}: {result}"
 
-    return [toggle_entity, get_entity_state, call_service]
+    tools = [toggle_entity, get_entity_state, call_service]
+
+    if event_store is not None:
+        from brain.agents.memory.tools import make_tools as make_memory_tools
+        tools.extend(make_memory_tools(event_store))
+
+    return tools

@@ -43,6 +43,21 @@ class TestGetEntityState:
         assert "light.bedroom is on" in result
 
 
+class TestMakeToolsWithEventStore:
+    def test_includes_search_past_events_when_store_provided(self, mock_ha_client):
+        from unittest.mock import MagicMock
+        from brain.chromadb_store import EventStore
+        mock_store = MagicMock(spec=EventStore)
+        tools = make_tools(mock_ha_client, event_store=mock_store)
+        tool_names = [t.name for t in tools]
+        assert "search_past_events" in tool_names
+
+    def test_no_search_tool_without_event_store(self, mock_ha_client):
+        tools = make_tools(mock_ha_client)
+        tool_names = [t.name for t in tools]
+        assert "search_past_events" not in tool_names
+
+
 class TestCallService:
     async def test_calls_service_without_data(self, tools, mock_ha_client):
         call_svc = tools[2]
