@@ -81,3 +81,70 @@ class TestCallService:
         mock_ha_client.call_service.assert_called_once_with(
             "light", "turn_on", "light.bedroom", {"brightness": 128}
         )
+
+
+@pytest.fixture
+def mock_ha_client_with_states():
+    client = AsyncMock()
+    client.get_state.return_value = {"entity_id": "light.bedroom", "state": "on"}
+    client.call_service.return_value = [{"entity_id": "light.bedroom", "state": "on"}]
+    client.get_all_states.return_value = [
+        {
+            "entity_id": "sensor.grow_temperature",
+            "state": "23.4",
+            "attributes": {
+                "friendly_name": "Temperature",
+                "unit_of_measurement": "°C",
+            },
+        },
+        {
+            "entity_id": "light.living_room",
+            "state": "off",
+            "attributes": {"friendly_name": "Living Room Light"},
+        },
+        {
+            "entity_id": "sensor.bedroom_humidity",
+            "state": "55",
+            "attributes": {
+                "friendly_name": "Bedroom Humidity",
+                "unit_of_measurement": "%",
+            },
+        },
+    ]
+    return client
+
+
+class TestSearchHaEntities:
+    async def test_returns_matching_entities(self, mock_ha_client_with_states):
+        tools = make_tools(mock_ha_client_with_states)
+        search = next(t for t in tools if t.name == "search_ha_entities")
+        result = await search.ainvoke({"query": "grow temperature"})
+        assert "sensor.grow_temperature" in result
+        assert "23.4" in result
+        assert "°C" in result
+
+    async def test_returns_no_match_message_when_nothing_found(
+        self, mock_ha_client_with_states
+    ):
+        tools = make_tools(mock_ha_client_with_states)
+        search = next(t for t in tools if t.name == "search_ha_entities")
+        result = await search.ainvoke({"query": "nonexistent xyz"})
+        assert "No entities found" in result
+
+    async def test_returns_error_string_when_ha_unreachable(self, mock_ha_client_with_states):
+        mock_ha_client_with_states.get_all_states.side_effect = Exception("connection refused")
+        tools = make_tools(mock_ha_client_with_states)
+        search = next(t for t in tools if t.name == "search_ha_entities")
+        result = await search.ainvoke({"query": "temperature"})
+        assert "Entity search failed" in result
+
+    async def test_does_not_shift_existing_tool_indices(self, mock_ha_client_with_states):
+        tools = make_tools(mock_ha_client_with_states)
+        assert tools[0].name == "toggle_entity"
+        assert tools[1].name == "get_entity_state"
+        assert tools[2].name == "call_service"
+
+    async def test_included_without_event_store(self, mock_ha_client_with_states):
+        tools = make_tools(mock_ha_client_with_states)
+        tool_names = [t.name for t in tools]
+        assert "search_ha_entities" in tool_names
