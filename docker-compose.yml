@@ -16,8 +16,9 @@ services:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: home-cortex-ha
     network_mode: host
+    privileged: true
     devices:
-      - /dev/ttyUSB0
+      - /dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_46d03af4518bef1190e920ccef8776e9-if00-port0:/dev/ttyUSB0
     volumes:
       - ./homeassistant:/config
     restart: unless-stopped
