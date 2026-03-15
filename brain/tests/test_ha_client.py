@@ -78,3 +78,37 @@ class TestCallService:
         )
         with pytest.raises(httpx.HTTPStatusError):
             await ha_client.call_service("light", "toggle", "light.bedroom")
+
+
+class TestGetAllStates:
+    async def test_returns_list_of_states(self, ha_client, httpx_mock):
+        httpx_mock.add_response(
+            url="http://ha-test:8123/api/states",
+            json=[
+                {
+                    "entity_id": "light.bedroom",
+                    "state": "on",
+                    "attributes": {"friendly_name": "Bedroom Light"},
+                },
+                {
+                    "entity_id": "sensor.temperature",
+                    "state": "23.4",
+                    "attributes": {
+                        "friendly_name": "Temperature",
+                        "unit_of_measurement": "°C",
+                    },
+                },
+            ],
+        )
+        result = await ha_client.get_all_states()
+        assert len(result) == 2
+        assert result[0]["entity_id"] == "light.bedroom"
+        assert result[1]["state"] == "23.4"
+
+    async def test_raises_on_auth_error(self, ha_client, httpx_mock):
+        httpx_mock.add_response(
+            url="http://ha-test:8123/api/states",
+            status_code=401,
+        )
+        with pytest.raises(httpx.HTTPStatusError):
+            await ha_client.get_all_states()

@@ -13,6 +13,11 @@ class HAClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def get_all_states(self) -> list[dict]:
+        resp = await self._client.get("/api/states")
+        resp.raise_for_status()
+        return resp.json()
+
     async def call_service(
         self,
         domain: str,
