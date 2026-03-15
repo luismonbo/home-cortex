@@ -21,6 +21,11 @@ class GraphRunner:
         result = await self._graph.ainvoke(state)
         logger.info("Graph completed: %s", result.get("result", ""))
 
+    async def invoke(self, state: CortexState) -> CortexState:
+        result = await self._graph.ainvoke(state)
+        logger.info("Graph completed (invoke): %s", result.get("result", ""))
+        return result
+
     async def shutdown(self) -> None:
         for task in self._tasks:
             task.cancel()

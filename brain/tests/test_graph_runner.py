@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from brain.graph.runner import GraphRunner
+from brain.graph.state import CortexState
 
 
 @pytest.fixture
@@ -77,3 +78,31 @@ class TestShutdown:
         assert len(runner._tasks) == 1
         await runner.shutdown()
         assert len(runner._tasks) == 0
+
+
+class TestGraphRunnerInvoke:
+    async def test_invoke_returns_completed_state(self):
+        expected_state = {
+            "result": "The temperature is 23.4°C.",
+            "messages": [],
+            "intent": "temperature query",
+            "source": "siri",
+            "event_id": "abc",
+            "next_agent": "homeassistant",
+        }
+        mock_graph = AsyncMock()
+        mock_graph.ainvoke.return_value = expected_state
+        runner = GraphRunner(mock_graph)
+
+        state = CortexState(
+            messages=[],
+            intent="temperature query",
+            source="siri",
+            event_id="abc",
+            next_agent="",
+            result="",
+        )
+        result = await runner.invoke(state)
+
+        assert result["result"] == "The temperature is 23.4°C."
+        mock_graph.ainvoke.assert_called_once_with(state)
