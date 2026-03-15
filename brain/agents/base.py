@@ -10,4 +10,4 @@ class AgentDefinition:
     description: str
     node_fn: Callable
     tools: Sequence[BaseTool] = field(default_factory=list)
-    model_name: str = "gpt-4o-mini"
+    model_name: str = "gpt-5-nano"
