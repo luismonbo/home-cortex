@@ -11,6 +11,7 @@ from brain.config import settings
 from brain.graph.factory import build_supervisor_graph
 from brain.graph.runner import GraphRunner
 from brain.mqtt import MQTTListener
+from brain.routers.voice import router as voice_router
 from brain.routers.webhooks import router as webhooks_router
 from brain.services.ha_client import HAClient
 
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="The Brain", lifespan=lifespan)
 app.include_router(webhooks_router)
+app.include_router(voice_router)
 
 
 @app.get("/")
