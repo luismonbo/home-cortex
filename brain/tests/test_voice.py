@@ -56,6 +56,11 @@ class TestPostVoice:
             response = client.post("/voice", json={})
         assert response.status_code == 422
 
+    def test_empty_string_query_returns_422(self):
+        with make_test_client() as (client, _, __):
+            response = client.post("/voice", json={"query": ""})
+        assert response.status_code == 422
+
     def test_stores_event_in_chromadb(self):
         with make_test_client() as (client, mock_store, _):
             client.post("/voice", json={"query": "turn on the lights", "source": "siri"})

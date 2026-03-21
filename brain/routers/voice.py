@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, Request
 from langchain_core.messages import HumanMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from brain.graph.state import CortexState
 
@@ -14,7 +14,7 @@ SORRY_MESSAGE = "Sorry, something went wrong. Please try again."
 
 
 class VoiceRequest(BaseModel):
-    query: str
+    query: str = Field(..., min_length=1)
     source: str = "siri"
 
 
