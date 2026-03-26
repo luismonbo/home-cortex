@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import chromadb
+from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
 from brain.config import Settings
 
@@ -21,8 +22,15 @@ class EventStore:
             host=settings.chromadb_host,
             port=settings.chromadb_port,
         )
+        embedding_fn = OpenAIEmbeddingFunction(
+            api_key=settings.openai_api_key,
+            model_name=settings.embedding_model,
+        )
         try:
-            self._collection = self._client.get_or_create_collection(COLLECTION_NAME)
+            self._collection = self._client.get_or_create_collection(
+                COLLECTION_NAME,
+                embedding_function=embedding_fn,
+            )
         except Exception as exc:
             logger.error(
                 "EventStore failed to connect to ChromaDB at %s:%s: %s",

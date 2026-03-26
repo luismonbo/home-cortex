@@ -3,11 +3,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from brain.config import Settings
+from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
 
 @pytest.fixture
 def test_settings():
-    return Settings(chromadb_host="localhost", chromadb_port=8000)
+    return Settings(
+        chromadb_host="localhost",
+        chromadb_port=8000,
+        openai_api_key="test-key",
+        embedding_model="text-embedding-3-small",
+    )
 
 
 @pytest.fixture
@@ -24,24 +30,34 @@ def mock_chroma_client(mock_collection):
 
 class TestEventStoreInit:
     def test_creates_http_client_with_settings(self, test_settings, mock_chroma_client):
-        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client) as mock_cls:
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
             from brain.chromadb_store import EventStore
 
             store = EventStore(test_settings)
-            mock_cls.assert_called_once_with(host="localhost", port=8000)
 
-    def test_gets_or_creates_collection(self, test_settings, mock_chroma_client):
-        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client):
+    def test_gets_or_creates_collection_with_embedding_function(self, test_settings, mock_chroma_client):
+        mock_ef = MagicMock()
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction", return_value=mock_ef) as mock_ef_cls:
             from brain.chromadb_store import EventStore
 
             store = EventStore(test_settings)
-            mock_chroma_client.get_or_create_collection.assert_called_once_with("webhook_events")
+            mock_ef_cls.assert_called_once_with(
+                api_key="test-key",
+                model_name="text-embedding-3-small",
+            )
+            mock_chroma_client.get_or_create_collection.assert_called_once_with(
+                "webhook_events",
+                embedding_function=mock_ef,
+            )
 
     def test_raises_and_logs_on_connection_failure(self, test_settings, caplog):
         failing_client = MagicMock()
         failing_client.get_or_create_collection.side_effect = Exception("Connection refused")
 
-        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=failing_client):
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=failing_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
             from brain.chromadb_store import EventStore
 
             with pytest.raises(Exception, match="Connection refused"):
@@ -52,7 +68,8 @@ class TestEventStoreInit:
 
 class TestEventStoreStoreEvent:
     def test_store_event_returns_string_id(self, test_settings, mock_chroma_client):
-        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client):
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
             from brain.chromadb_store import EventStore
 
             store = EventStore(test_settings)
@@ -61,7 +78,8 @@ class TestEventStoreStoreEvent:
             assert len(event_id) > 0
 
     def test_store_event_adds_to_collection(self, test_settings, mock_chroma_client, mock_collection):
-        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client):
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
             from brain.chromadb_store import EventStore
 
             store = EventStore(test_settings)
@@ -86,7 +104,8 @@ class TestEventStoreSearchEvents:
             "metadatas": [[{"intent": "toggle_light", "source": "voice", "timestamp": "2026-02-28T12:00:00Z"}]],
         }
 
-        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client):
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
             from brain.chromadb_store import EventStore
 
             store = EventStore(test_settings)
@@ -103,7 +122,8 @@ class TestEventStoreSearchEvents:
             "metadatas": [],
         }
 
-        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client):
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
             from brain.chromadb_store import EventStore
 
             store = EventStore(test_settings)
