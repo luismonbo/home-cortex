@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -15,8 +15,20 @@ def mock_graph():
 
 
 @pytest.fixture
+def mock_notifier():
+    notifier = MagicMock()
+    notifier.send = AsyncMock()
+    return notifier
+
+
+@pytest.fixture
 def runner(mock_graph):
     return GraphRunner(graph=mock_graph)
+
+
+@pytest.fixture
+def runner_with_notifier(mock_graph, mock_notifier):
+    return GraphRunner(graph=mock_graph, notifier=mock_notifier)
 
 
 class TestDispatch:
@@ -106,3 +118,45 @@ class TestGraphRunnerInvoke:
 
         assert result["result"] == "The temperature is 23.4°C."
         mock_graph.ainvoke.assert_called_once_with(state)
+
+
+class TestDispatchNotifier:
+    async def test_dispatch_calls_notifier_with_result(self, runner_with_notifier, mock_graph, mock_notifier):
+        state = {
+            "messages": [],
+            "intent": "toggle_light",
+            "source": "webhook",
+            "event_id": "abc-123",
+            "next_agent": "",
+            "result": "",
+        }
+        runner_with_notifier.dispatch(state)
+        await asyncio.gather(*runner_with_notifier._tasks)
+        mock_notifier.send.assert_called_once_with("light toggled")
+
+    async def test_dispatch_skips_notifier_when_result_empty(self, runner_with_notifier, mock_graph, mock_notifier):
+        mock_graph.ainvoke.return_value = {"result": ""}
+        state = {
+            "messages": [],
+            "intent": "toggle_light",
+            "source": "webhook",
+            "event_id": "abc-123",
+            "next_agent": "",
+            "result": "",
+        }
+        runner_with_notifier.dispatch(state)
+        await asyncio.gather(*runner_with_notifier._tasks)
+        mock_notifier.send.assert_not_called()
+
+    async def test_dispatch_works_without_notifier(self, runner, mock_graph):
+        state = {
+            "messages": [],
+            "intent": "toggle_light",
+            "source": "webhook",
+            "event_id": "abc-123",
+            "next_agent": "",
+            "result": "",
+        }
+        runner.dispatch(state)
+        await asyncio.gather(*runner._tasks)
+        mock_graph.ainvoke.assert_called_once()
