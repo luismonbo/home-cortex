@@ -14,6 +14,8 @@ from brain.mqtt import MQTTListener
 from brain.routers.voice import router as voice_router
 from brain.routers.webhooks import router as webhooks_router
 from brain.services.ha_client import HAClient
+from brain.services.notifier import Notifier
+from brain.telegram_bot import TelegramBot
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,12 +32,23 @@ async def lifespan(app: FastAPI):
     ha_agent = build_ha_agent(ha_client, event_store=event_store, model_name=settings.ha_model)
     memory_agent = build_memory_agent(event_store)
     graph = build_supervisor_graph([ha_agent, memory_agent], router_model=settings.router_model)
-    runner = GraphRunner(graph)
+    notifier = Notifier(settings)
+    runner = GraphRunner(graph, notifier)
     app.state.runner = runner
 
     mqtt_listener = MQTTListener(settings)
     await mqtt_listener.start()
+
+    if settings.telegram_bot_token:
+        bot = TelegramBot(settings, event_store, runner)
+        await bot.start()
+    else:
+        bot = None
+
     yield
+
+    if bot:
+        await bot.stop()
     await mqtt_listener.stop()
     await runner.shutdown()
 

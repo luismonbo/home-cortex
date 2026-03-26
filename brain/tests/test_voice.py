@@ -27,13 +27,19 @@ def make_test_client(mock_event_store=None, mock_runner=None):
         )
         mock_runner.shutdown = AsyncMock()
 
+    mock_bot = MagicMock()
+    mock_bot.start = AsyncMock()
+    mock_bot.stop = AsyncMock()
+
     with patch("brain.main.MQTTListener") as MockListener, \
          patch("brain.main.EventStore", return_value=mock_event_store), \
          patch("brain.main.HAClient"), \
          patch("brain.main.build_ha_agent"), \
          patch("brain.main.build_memory_agent"), \
          patch("brain.main.build_supervisor_graph"), \
-         patch("brain.main.GraphRunner", return_value=mock_runner):
+         patch("brain.main.GraphRunner", return_value=mock_runner), \
+         patch("brain.main.Notifier"), \
+         patch("brain.main.TelegramBot", return_value=mock_bot):
         instance = MockListener.return_value
         instance.start = AsyncMock()
         instance.stop = AsyncMock()
