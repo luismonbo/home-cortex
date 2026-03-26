@@ -23,6 +23,27 @@ logging.basicConfig(
 )
 
 
+class SecretRedactFilter(logging.Filter):
+    """Redacts sensitive tokens from log messages."""
+
+    def __init__(self, secrets: list[str]) -> None:
+        super().__init__()
+        self._secrets = [s for s in secrets if s]
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        for secret in self._secrets:
+            if secret in msg:
+                record.msg = str(record.msg).replace(secret, "***REDACTED***")
+                record.args = None
+        return True
+
+
+logging.getLogger().addFilter(
+    SecretRedactFilter([settings.telegram_bot_token, settings.ha_token, settings.openai_api_key])
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     event_store = EventStore(settings)
