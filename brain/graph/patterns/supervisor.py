@@ -49,12 +49,25 @@ def build_supervisor(
         graph.add_node(agent.name, agent.node_fn)
 
     graph.add_edge(START, "router")
+    async def fallback(state: CortexState) -> dict:
+        response = await llm.ainvoke([
+            SystemMessage(
+                content="You are a friendly home assistant. The user said something "
+                "conversational that doesn't require any smart home action. "
+                "Reply briefly and naturally."
+            ),
+            HumanMessage(content=state["intent"]),
+        ])
+        return {"result": response.content}
+
+    graph.add_node("fallback", fallback)
     graph.add_conditional_edges(
         "router",
         route,
-        {a.name: a.name for a in agents} | {"unknown": END},
+        {a.name: a.name for a in agents} | {"unknown": "fallback"},
     )
     for agent in agents:
         graph.add_edge(agent.name, END)
+    graph.add_edge("fallback", END)
 
     return graph.compile()
