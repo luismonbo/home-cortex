@@ -107,3 +107,7 @@ logs/
 *.tmp
 temp/
 tmp/
+
+# Superpowers brainstorm sessions
+.superpowers/
+docs/*
