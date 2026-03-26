@@ -25,7 +25,7 @@ class TelegramBot:
         self._app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_message))
 
     async def _handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if update.effective_chat.id != self._chat_id:
+        if not update.effective_chat or update.effective_chat.id != self._chat_id:
             return
 
         text = update.message.text
