@@ -11,6 +11,18 @@ class TestSettings:
         s = Settings()
         assert s.ha_model == "gpt-5-nano"
 
+    def test_embedding_model_defaults_to_text_embedding_3_small(self):
+        s = Settings(openai_api_key="test")
+        assert s.embedding_model == "text-embedding-3-small"
+
+    def test_telegram_bot_token_defaults_to_empty(self):
+        s = Settings()
+        assert s.telegram_bot_token == ""
+
+    def test_telegram_chat_id_defaults_to_zero(self):
+        s = Settings()
+        assert s.telegram_chat_id == 0
+
 
 class TestHAPrompts:
     def test_routing_description_exists(self):

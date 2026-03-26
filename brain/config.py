@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     graph_pattern: str = "supervisor"
     router_model: str = "gpt-5-nano"
     ha_model: str = "gpt-5-nano"
+    embedding_model: str = "text-embedding-3-small"
+    telegram_bot_token: str = ""
+    telegram_chat_id: int = 0
 
 
 settings = Settings()
