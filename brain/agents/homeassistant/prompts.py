@@ -6,6 +6,7 @@ SYSTEM_PROMPT = (
 )
 
 ROUTING_DESCRIPTION = (
-    "Controls Home Assistant smart home devices — "
-    "toggle lights, check entity states, and call services."
+    "Controls and queries Home Assistant smart home devices — "
+    "toggle lights, read sensor data (temperature, humidity, energy, etc.), "
+    "check entity states, and call services."
 )
