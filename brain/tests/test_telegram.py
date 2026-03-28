@@ -1,8 +1,14 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from brain.config import Settings
+from brain.graph.events import StreamEvent
+
+
+async def _async_iter(items):
+    for item in items:
+        yield item
 
 
 @pytest.fixture
@@ -23,14 +29,10 @@ def mock_event_store():
 @pytest.fixture
 def mock_runner():
     runner = MagicMock()
-    runner.invoke = AsyncMock(return_value={
-        "result": "The light is on.",
-        "messages": [],
-        "intent": "",
-        "source": "",
-        "event_id": "",
-        "next_agent": "",
-    })
+    runner.stream = MagicMock(return_value=_async_iter([
+        StreamEvent(kind="node_start", agent="router"),
+        StreamEvent(kind="result", agent="homeassistant", content="The light is on."),
+    ]))
     return runner
 
 
@@ -46,7 +48,7 @@ class TestTelegramBotAuth:
         context = MagicMock()
 
         await bot._handle_message(update, context)
-        mock_runner.invoke.assert_not_called()
+        mock_runner.stream.assert_not_called()
 
     async def test_processes_message_from_correct_chat_id(self, telegram_settings, mock_event_store, mock_runner):
         from brain.telegram_bot import TelegramBot
@@ -56,11 +58,11 @@ class TestTelegramBotAuth:
         update = MagicMock()
         update.effective_chat.id = 123456
         update.message.text = "turn on the lights"
-        update.message.reply_text = AsyncMock()
+        update.message.reply_text = AsyncMock(return_value=MagicMock(edit_text=AsyncMock()))
         context = MagicMock()
 
         await bot._handle_message(update, context)
-        mock_runner.invoke.assert_called_once()
+        mock_runner.stream.assert_called_once()
 
 
 class TestTelegramBotMessageFlow:
@@ -72,7 +74,7 @@ class TestTelegramBotMessageFlow:
         update = MagicMock()
         update.effective_chat.id = 123456
         update.message.text = "what is the temperature"
-        update.message.reply_text = AsyncMock()
+        update.message.reply_text = AsyncMock(return_value=MagicMock(edit_text=AsyncMock()))
         context = MagicMock()
 
         await bot._handle_message(update, context)
@@ -82,68 +84,73 @@ class TestTelegramBotMessageFlow:
             source="telegram",
         )
 
-    async def test_invokes_graph_with_correct_state(self, telegram_settings, mock_event_store, mock_runner):
+    async def test_sends_placeholder_then_streams(self, telegram_settings, mock_event_store, mock_runner):
         from brain.telegram_bot import TelegramBot
+
+        mock_placeholder = MagicMock()
+        mock_placeholder.edit_text = AsyncMock()
+
+        mock_runner.stream = MagicMock(return_value=_async_iter([
+            StreamEvent(kind="node_start", agent="router"),
+            StreamEvent(kind="result", agent="homeassistant", content="The light is on."),
+        ]))
 
         bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
 
         update = MagicMock()
         update.effective_chat.id = 123456
         update.message.text = "turn on the lights"
-        update.message.reply_text = AsyncMock()
+        update.message.reply_text = AsyncMock(return_value=mock_placeholder)
         context = MagicMock()
 
         await bot._handle_message(update, context)
+        update.message.reply_text.assert_called_once_with("Thinking...")
+        mock_placeholder.edit_text.assert_called_with("The light is on.")
 
-        call_args = mock_runner.invoke.call_args[0][0]
-        assert call_args["intent"] == "turn on the lights"
-        assert call_args["source"] == "telegram"
-        assert call_args["event_id"] == "tg-event-123"
-
-    async def test_replies_with_graph_result(self, telegram_settings, mock_event_store, mock_runner):
+    async def test_replies_with_sorry_on_stream_failure(self, telegram_settings, mock_event_store, mock_runner):
         from brain.telegram_bot import TelegramBot
 
-        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
+        async def _failing_stream(state):
+            raise Exception("LLM timeout")
+            yield  # make it a generator
 
-        update = MagicMock()
-        update.effective_chat.id = 123456
-        update.message.text = "what is the temperature"
-        update.message.reply_text = AsyncMock()
-        context = MagicMock()
+        mock_runner.stream = MagicMock(side_effect=_failing_stream)
 
-        await bot._handle_message(update, context)
-        update.message.reply_text.assert_called_once_with("The light is on.")
-
-    async def test_replies_with_sorry_on_graph_failure(self, telegram_settings, mock_event_store, mock_runner):
-        mock_runner.invoke = AsyncMock(side_effect=Exception("LLM timeout"))
-        from brain.telegram_bot import TelegramBot
+        mock_placeholder = MagicMock()
+        mock_placeholder.edit_text = AsyncMock()
 
         bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
 
         update = MagicMock()
         update.effective_chat.id = 123456
         update.message.text = "turn on the lights"
-        update.message.reply_text = AsyncMock()
+        update.message.reply_text = AsyncMock(return_value=mock_placeholder)
         context = MagicMock()
 
         await bot._handle_message(update, context)
-        update.message.reply_text.assert_called_once_with(
+        mock_placeholder.edit_text.assert_called_with(
             "Sorry, something went wrong. Please try again."
         )
 
-    async def test_replies_with_sorry_on_empty_result(self, telegram_settings, mock_event_store, mock_runner):
-        mock_runner.invoke = AsyncMock(return_value={"result": ""})
+    async def test_replies_with_sorry_when_no_result_event(self, telegram_settings, mock_event_store, mock_runner):
         from brain.telegram_bot import TelegramBot
+
+        mock_runner.stream = MagicMock(return_value=_async_iter([
+            StreamEvent(kind="node_start", agent="router"),
+        ]))
+
+        mock_placeholder = MagicMock()
+        mock_placeholder.edit_text = AsyncMock()
 
         bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
 
         update = MagicMock()
         update.effective_chat.id = 123456
         update.message.text = "gibberish"
-        update.message.reply_text = AsyncMock()
+        update.message.reply_text = AsyncMock(return_value=mock_placeholder)
         context = MagicMock()
 
         await bot._handle_message(update, context)
-        update.message.reply_text.assert_called_once_with(
+        mock_placeholder.edit_text.assert_called_with(
             "Sorry, something went wrong. Please try again."
         )
