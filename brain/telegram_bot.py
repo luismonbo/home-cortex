@@ -50,8 +50,9 @@ class TelegramBot:
             result="",
         )
 
-        placeholder = await update.message.reply_text("Thinking...")
-        reporter = TelegramReporter(placeholder)
+        placeholder_text = "Thinking..."
+        placeholder = await update.message.reply_text(placeholder_text)
+        reporter = TelegramReporter(placeholder, initial_text=placeholder_text)
         got_result = False
 
         try:

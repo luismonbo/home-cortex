@@ -33,13 +33,14 @@ _THROTTLE_SECONDS = 1.0
 class TelegramReporter:
     """Edits a single Telegram message to show agent progress."""
 
-    def __init__(self, message: Message) -> None:
+    def __init__(self, message: Message, initial_text: str = "") -> None:
         self._message = message
         self._last_edit: float = 0.0
+        self._last_text: str = initial_text
 
     async def on_event(self, event: StreamEvent) -> None:
         text = self._resolve_text(event)
-        if text is None:
+        if text is None or text == self._last_text:
             return
 
         is_final = event.kind == "result"
@@ -49,6 +50,7 @@ class TelegramReporter:
         try:
             await self._message.edit_text(text)
             self._last_edit = time.monotonic()
+            self._last_text = text
         except Exception:
             logger.exception("Failed to edit Telegram message")
 

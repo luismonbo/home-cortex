@@ -86,6 +86,17 @@ class TestTelegramReporterThrottling:
         mock_message.edit_text.assert_called_with("Done")
 
 
+class TestTelegramReporterDuplicateText:
+    async def test_skips_edit_when_text_unchanged(self, reporter, mock_message):
+        """Telegram rejects editing a message to the same text — skip it."""
+        event1 = StreamEvent(kind="node_start", agent="router")
+        event2 = StreamEvent(kind="node_start", agent="unknown")  # also resolves to "Thinking..."
+        await reporter.on_event(event1)
+        await reporter.on_event(event2)
+        # Only one edit — second was skipped because text is identical
+        mock_message.edit_text.assert_called_once_with("Thinking...")
+
+
 class TestTelegramReporterErrorHandling:
     async def test_edit_failure_is_logged_not_raised(self, reporter, mock_message):
         mock_message.edit_text = AsyncMock(side_effect=Exception("Telegram API error"))
