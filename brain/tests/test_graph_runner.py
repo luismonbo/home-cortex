@@ -241,6 +241,61 @@ class TestGraphRunnerStream:
         assert len(results) == 1
         assert results[0].content == "Light is on"
 
+    async def test_stream_yields_tool_end_events(self):
+        """stream() should yield tool_end events when tools finish."""
+        mock_graph = AsyncMock()
+        mock_graph.astream_events = MagicMock(return_value=_async_iter([
+            {
+                "event": "on_tool_end",
+                "name": "get_entity_state",
+                "metadata": {"langgraph_node": "homeassistant"},
+                "data": {},
+            },
+            {
+                "event": "on_chain_end",
+                "name": "__end__",
+                "metadata": {},
+                "data": {"output": {"result": "23°C"}},
+            },
+        ]))
+        runner = GraphRunner(mock_graph)
+        state = CortexState(
+            messages=[], intent="test", source="telegram",
+            event_id="e1", next_agent="", result="",
+        )
+        events = [e async for e in runner.stream(state)]
+        tool_ends = [e for e in events if e.kind == "tool_end"]
+        assert len(tool_ends) == 1
+        assert tool_ends[0].tool == "get_entity_state"
+        assert tool_ends[0].agent == "homeassistant"
+
+    async def test_stream_yields_only_first_result(self):
+        """stream() should only yield one result event even with multiple __end__ events."""
+        mock_graph = AsyncMock()
+        mock_graph.astream_events = MagicMock(return_value=_async_iter([
+            {
+                "event": "on_chain_end",
+                "name": "__end__",
+                "metadata": {},
+                "data": {"output": {"result": "First result"}},
+            },
+            {
+                "event": "on_chain_end",
+                "name": "__end__",
+                "metadata": {},
+                "data": {"output": {"result": "Duplicate result"}},
+            },
+        ]))
+        runner = GraphRunner(mock_graph)
+        state = CortexState(
+            messages=[], intent="test", source="telegram",
+            event_id="e1", next_agent="", result="",
+        )
+        events = [e async for e in runner.stream(state)]
+        results = [e for e in events if e.kind == "result"]
+        assert len(results) == 1
+        assert results[0].content == "First result"
+
     async def test_invoke_still_works(self):
         """Existing invoke() is not broken by adding stream()."""
         expected_state = {

@@ -41,6 +41,7 @@ class GraphRunner:
 
     async def stream(self, state: CortexState) -> AsyncGenerator[StreamEvent]:
         current_agent = ""
+        yielded_result = False
         async for event in self._graph.astream_events(state, version="v2"):
             kind = event.get("event", "")
             name = event.get("name", "")
@@ -57,10 +58,11 @@ class GraphRunner:
             elif kind == "on_tool_end":
                 yield StreamEvent(kind="tool_end", agent=node or current_agent, tool=name)
 
-            elif kind == "on_chain_end" and name == "__end__":
+            elif kind == "on_chain_end" and name == "__end__" and not yielded_result:
                 output = event.get("data", {}).get("output", {})
                 result_text = output.get("result", "") if isinstance(output, dict) else ""
                 if result_text:
+                    yielded_result = True
                     yield StreamEvent(kind="result", agent=current_agent, content=result_text)
 
     async def shutdown(self) -> None:
