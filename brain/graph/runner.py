@@ -58,16 +58,12 @@ class GraphRunner:
             elif kind == "on_tool_end":
                 yield StreamEvent(kind="tool_end", agent=node or current_agent, tool=name)
 
-            elif kind == "on_chain_end":
-                logger.info("on_chain_end name=%r node=%r data_keys=%r", name, node, list(event.get("data", {}).keys()))
+            elif kind == "on_chain_end" and not yielded_result:
                 output = event.get("data", {}).get("output", {})
-                if isinstance(output, dict):
-                    logger.info("on_chain_end output_keys=%r result=%r", list(output.keys()), output.get("result", "")[:200] if output.get("result") else None)
-                if name == "__end__" and not yielded_result:
-                    result_text = output.get("result", "") if isinstance(output, dict) else ""
-                    if result_text:
-                        yielded_result = True
-                        yield StreamEvent(kind="result", agent=current_agent, content=result_text)
+                result_text = output.get("result", "") if isinstance(output, dict) else ""
+                if result_text:
+                    yielded_result = True
+                    yield StreamEvent(kind="result", agent=current_agent, content=result_text)
 
     async def shutdown(self) -> None:
         for task in self._tasks:

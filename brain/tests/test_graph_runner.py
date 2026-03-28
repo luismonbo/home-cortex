@@ -178,7 +178,7 @@ class TestGraphRunnerStream:
             },
             {
                 "event": "on_chain_end",
-                "name": "__end__",
+                "name": "homeassistant",
                 "metadata": {},
                 "data": {"output": {"result": "Light is on"}},
             },
@@ -204,7 +204,7 @@ class TestGraphRunnerStream:
             },
             {
                 "event": "on_chain_end",
-                "name": "__end__",
+                "name": "homeassistant",
                 "metadata": {},
                 "data": {"output": {"result": "23°C"}},
             },
@@ -226,7 +226,7 @@ class TestGraphRunnerStream:
         mock_graph.astream_events = MagicMock(return_value=_async_iter([
             {
                 "event": "on_chain_end",
-                "name": "__end__",
+                "name": "homeassistant",
                 "metadata": {},
                 "data": {"output": {"result": "Light is on"}},
             },
@@ -253,7 +253,7 @@ class TestGraphRunnerStream:
             },
             {
                 "event": "on_chain_end",
-                "name": "__end__",
+                "name": "homeassistant",
                 "metadata": {},
                 "data": {"output": {"result": "23°C"}},
             },
@@ -270,18 +270,18 @@ class TestGraphRunnerStream:
         assert tool_ends[0].agent == "homeassistant"
 
     async def test_stream_yields_only_first_result(self):
-        """stream() should only yield one result event even with multiple __end__ events."""
+        """stream() should only yield one result event even with multiple on_chain_end events."""
         mock_graph = AsyncMock()
         mock_graph.astream_events = MagicMock(return_value=_async_iter([
             {
                 "event": "on_chain_end",
-                "name": "__end__",
-                "metadata": {},
+                "name": "homeassistant",
+                "metadata": {"langgraph_node": "homeassistant"},
                 "data": {"output": {"result": "First result"}},
             },
             {
                 "event": "on_chain_end",
-                "name": "__end__",
+                "name": "LangGraph",
                 "metadata": {},
                 "data": {"output": {"result": "Duplicate result"}},
             },
