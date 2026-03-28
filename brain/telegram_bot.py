@@ -8,6 +8,7 @@ from brain.chromadb_store import EventStore
 from brain.config import Settings
 from brain.graph.runner import GraphRunner
 from brain.graph.state import CortexState
+from brain.reporters.telegram import TelegramReporter
 
 logger = logging.getLogger(__name__)
 
@@ -49,16 +50,22 @@ class TelegramBot:
             result="",
         )
 
+        placeholder = await update.message.reply_text("Thinking...")
+        reporter = TelegramReporter(placeholder)
+        got_result = False
+
         try:
-            final_state = await self._runner.invoke(state)
-            response_text = final_state.get("result", "")
-            if not response_text:
-                response_text = SORRY_MESSAGE
+            async for event in self._runner.stream(state):
+                await reporter.on_event(event)
+                if event.kind == "result":
+                    got_result = True
         except Exception:
             logger.exception("Graph execution failed for Telegram message")
-            response_text = SORRY_MESSAGE
+            await placeholder.edit_text(SORRY_MESSAGE)
+            return
 
-        await update.message.reply_text(response_text)
+        if not got_result:
+            await placeholder.edit_text(SORRY_MESSAGE)
 
     async def start(self) -> None:
         await self._app.initialize()
