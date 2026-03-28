@@ -59,10 +59,10 @@ class GraphRunner:
                 yield StreamEvent(kind="tool_end", agent=node or current_agent, tool=name)
 
             elif kind == "on_chain_end":
-                logger.debug("on_chain_end name=%r node=%r data_keys=%r", name, node, list(event.get("data", {}).keys()))
+                logger.info("on_chain_end name=%r node=%r data_keys=%r", name, node, list(event.get("data", {}).keys()))
                 output = event.get("data", {}).get("output", {})
                 if isinstance(output, dict):
-                    logger.debug("on_chain_end output_keys=%r result=%r", list(output.keys()), output.get("result", "")[:200] if output.get("result") else None)
+                    logger.info("on_chain_end output_keys=%r result=%r", list(output.keys()), output.get("result", "")[:200] if output.get("result") else None)
                 if name == "__end__" and not yielded_result:
                     result_text = output.get("result", "") if isinstance(output, dict) else ""
                     if result_text:
