@@ -1,10 +1,6 @@
-import logging
-
 from openai import AsyncOpenAI
 
 from brain.config import Settings
-
-logger = logging.getLogger(__name__)
 
 
 class VoiceTranscriber:
