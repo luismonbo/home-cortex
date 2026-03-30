@@ -15,6 +15,7 @@ from brain.routers.voice import router as voice_router
 from brain.routers.webhooks import router as webhooks_router
 from brain.services.ha_client import HAClient
 from brain.services.notifier import Notifier
+from brain.services.transcriber import VoiceTranscriber
 from brain.telegram_bot import TelegramBot
 
 logging.basicConfig(
@@ -61,7 +62,8 @@ async def lifespan(app: FastAPI):
     await mqtt_listener.start()
 
     if settings.telegram_bot_token:
-        bot = TelegramBot(settings, event_store, runner)
+        transcriber = VoiceTranscriber(settings)
+        bot = TelegramBot(settings, event_store, runner, transcriber)
         await bot.start()
     else:
         bot = None
