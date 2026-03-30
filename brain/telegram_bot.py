@@ -33,6 +33,7 @@ class TelegramBot:
         self._transcriber = transcriber
         self._app = Application.builder().token(settings.telegram_bot_token).build()
         self._app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_message))
+        self._app.add_handler(MessageHandler(filters.VOICE, self._handle_voice))
 
     async def _handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_chat or update.effective_chat.id != self._chat_id:
@@ -71,6 +72,67 @@ class TelegramBot:
                     got_result = True
         except Exception:
             logger.exception("Graph execution failed for Telegram message")
+            await placeholder.edit_text(SORRY_MESSAGE)
+            return
+
+        if not got_result:
+            await placeholder.edit_text(SORRY_MESSAGE)
+
+    async def _handle_voice(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.effective_chat or update.effective_chat.id != self._chat_id:
+            return
+
+        placeholder_text = "Thinking..."
+        placeholder = await update.message.reply_text(placeholder_text)
+
+        try:
+            voice_file = await update.message.voice.get_file()
+            audio_bytes = bytes(await voice_file.download_as_bytearray())
+        except Exception:
+            logger.exception("Failed to download voice note")
+            await placeholder.edit_text(SORRY_MESSAGE)
+            return
+
+        try:
+            transcript = await self._transcriber.transcribe(audio_bytes)
+        except Exception:
+            logger.exception("Failed to transcribe voice note")
+            await placeholder.edit_text(SORRY_MESSAGE)
+            return
+
+        if not transcript:
+            await placeholder.edit_text(UNCLEAR_AUDIO_MESSAGE)
+            return
+
+        event_id = ""
+        try:
+            event_id = self._event_store.store_event(
+                intent=transcript,
+                payload={},
+                source="telegram_voice",
+            )
+        except Exception:
+            logger.exception("Failed to store Telegram voice event")
+
+        state = CortexState(
+            messages=[HumanMessage(content=transcript)],
+            intent=transcript,
+            source="telegram_voice",
+            event_id=event_id,
+            next_agent="",
+            result="",
+        )
+
+        reporter = TelegramReporter(placeholder, initial_text=placeholder_text)
+        got_result = False
+
+        try:
+            async for event in self._runner.stream(state):
+                await reporter.on_event(event)
+                if event.kind == "result":
+                    got_result = True
+        except Exception:
+            logger.exception("Graph execution failed for Telegram voice message")
             await placeholder.edit_text(SORRY_MESSAGE)
             return
 

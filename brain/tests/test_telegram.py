@@ -161,3 +161,139 @@ class TestTelegramBotMessageFlow:
         mock_placeholder.edit_text.assert_called_with(
             "Sorry, something went wrong. Please try again."
         )
+
+
+class TestTelegramBotVoice:
+    async def test_ignores_voice_from_wrong_chat_id(
+        self, telegram_settings, mock_event_store, mock_runner, mock_transcriber
+    ):
+        from brain.telegram_bot import TelegramBot
+
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
+
+        update = MagicMock()
+        update.effective_chat.id = 999999
+        context = MagicMock()
+
+        await bot._handle_voice(update, context)
+        mock_transcriber.transcribe.assert_not_called()
+
+    async def test_voice_transcribes_and_runs_agent(
+        self, telegram_settings, mock_event_store, mock_runner, mock_transcriber
+    ):
+        from brain.telegram_bot import TelegramBot
+
+        mock_placeholder = MagicMock()
+        mock_placeholder.edit_text = AsyncMock()
+
+        mock_voice_file = AsyncMock()
+        mock_voice_file.download_as_bytearray = AsyncMock(return_value=bytearray(b"audio-data"))
+
+        update = MagicMock()
+        update.effective_chat.id = 123456
+        update.message.reply_text = AsyncMock(return_value=mock_placeholder)
+        update.message.voice.get_file = AsyncMock(return_value=mock_voice_file)
+        context = MagicMock()
+
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
+        await bot._handle_voice(update, context)
+
+        mock_transcriber.transcribe.assert_called_once_with(b"audio-data")
+        mock_runner.stream.assert_called_once()
+
+    async def test_voice_stores_event_with_telegram_voice_source(
+        self, telegram_settings, mock_event_store, mock_runner, mock_transcriber
+    ):
+        from brain.telegram_bot import TelegramBot
+
+        mock_placeholder = MagicMock()
+        mock_placeholder.edit_text = AsyncMock()
+
+        mock_voice_file = AsyncMock()
+        mock_voice_file.download_as_bytearray = AsyncMock(return_value=bytearray(b"audio-data"))
+
+        update = MagicMock()
+        update.effective_chat.id = 123456
+        update.message.reply_text = AsyncMock(return_value=mock_placeholder)
+        update.message.voice.get_file = AsyncMock(return_value=mock_voice_file)
+        context = MagicMock()
+
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
+        await bot._handle_voice(update, context)
+
+        mock_event_store.store_event.assert_called_once_with(
+            intent="what is the temperature",
+            payload={},
+            source="telegram_voice",
+        )
+
+    async def test_voice_transcription_failure_replies_sorry(
+        self, telegram_settings, mock_event_store, mock_runner, mock_transcriber
+    ):
+        from brain.telegram_bot import TelegramBot
+
+        mock_placeholder = MagicMock()
+        mock_placeholder.edit_text = AsyncMock()
+
+        mock_voice_file = AsyncMock()
+        mock_voice_file.download_as_bytearray = AsyncMock(return_value=bytearray(b"audio-data"))
+        mock_transcriber.transcribe = AsyncMock(side_effect=Exception("Whisper API error"))
+
+        update = MagicMock()
+        update.effective_chat.id = 123456
+        update.message.reply_text = AsyncMock(return_value=mock_placeholder)
+        update.message.voice.get_file = AsyncMock(return_value=mock_voice_file)
+        context = MagicMock()
+
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
+        await bot._handle_voice(update, context)
+
+        mock_placeholder.edit_text.assert_called_with("Sorry, something went wrong. Please try again.")
+        mock_runner.stream.assert_not_called()
+
+    async def test_voice_empty_transcript_replies_cannot_understand(
+        self, telegram_settings, mock_event_store, mock_runner, mock_transcriber
+    ):
+        from brain.telegram_bot import TelegramBot
+
+        mock_placeholder = MagicMock()
+        mock_placeholder.edit_text = AsyncMock()
+
+        mock_voice_file = AsyncMock()
+        mock_voice_file.download_as_bytearray = AsyncMock(return_value=bytearray(b"silence"))
+        mock_transcriber.transcribe = AsyncMock(return_value="")
+
+        update = MagicMock()
+        update.effective_chat.id = 123456
+        update.message.reply_text = AsyncMock(return_value=mock_placeholder)
+        update.message.voice.get_file = AsyncMock(return_value=mock_voice_file)
+        context = MagicMock()
+
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
+        await bot._handle_voice(update, context)
+
+        mock_placeholder.edit_text.assert_called_with("Sorry, I couldn't understand that. Please try again.")
+        mock_runner.stream.assert_not_called()
+
+    async def test_voice_download_failure_replies_sorry(
+        self, telegram_settings, mock_event_store, mock_runner, mock_transcriber
+    ):
+        from brain.telegram_bot import TelegramBot
+
+        mock_placeholder = MagicMock()
+        mock_placeholder.edit_text = AsyncMock()
+
+        mock_voice_file = AsyncMock()
+        mock_voice_file.download_as_bytearray = AsyncMock(side_effect=Exception("Telegram download error"))
+
+        update = MagicMock()
+        update.effective_chat.id = 123456
+        update.message.reply_text = AsyncMock(return_value=mock_placeholder)
+        update.message.voice.get_file = AsyncMock(return_value=mock_voice_file)
+        context = MagicMock()
+
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
+        await bot._handle_voice(update, context)
+
+        mock_placeholder.edit_text.assert_called_with("Sorry, something went wrong. Please try again.")
+        mock_transcriber.transcribe.assert_not_called()
