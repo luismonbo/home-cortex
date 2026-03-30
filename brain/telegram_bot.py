@@ -9,19 +9,28 @@ from brain.config import Settings
 from brain.graph.runner import GraphRunner
 from brain.graph.state import CortexState
 from brain.reporters.telegram import TelegramReporter
+from brain.services.transcriber import VoiceTranscriber
 
 logger = logging.getLogger(__name__)
 
 SORRY_MESSAGE = "Sorry, something went wrong. Please try again."
+UNCLEAR_AUDIO_MESSAGE = "Sorry, I couldn't understand that. Please try again."
 
 
 class TelegramBot:
     """Bidirectional Telegram bot for chatting with Cortex."""
 
-    def __init__(self, settings: Settings, event_store: EventStore, runner: GraphRunner) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        event_store: EventStore,
+        runner: GraphRunner,
+        transcriber: VoiceTranscriber,
+    ) -> None:
         self._chat_id = settings.telegram_chat_id
         self._event_store = event_store
         self._runner = runner
+        self._transcriber = transcriber
         self._app = Application.builder().token(settings.telegram_bot_token).build()
         self._app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_message))
 

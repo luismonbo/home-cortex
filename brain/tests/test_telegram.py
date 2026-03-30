@@ -36,11 +36,18 @@ def mock_runner():
     return runner
 
 
+@pytest.fixture
+def mock_transcriber():
+    transcriber = MagicMock()
+    transcriber.transcribe = AsyncMock(return_value="what is the temperature")
+    return transcriber
+
+
 class TestTelegramBotAuth:
-    async def test_ignores_message_from_wrong_chat_id(self, telegram_settings, mock_event_store, mock_runner):
+    async def test_ignores_message_from_wrong_chat_id(self, telegram_settings, mock_event_store, mock_runner, mock_transcriber):
         from brain.telegram_bot import TelegramBot
 
-        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
 
         update = MagicMock()
         update.effective_chat.id = 999999  # wrong chat ID
@@ -50,10 +57,10 @@ class TestTelegramBotAuth:
         await bot._handle_message(update, context)
         mock_runner.stream.assert_not_called()
 
-    async def test_processes_message_from_correct_chat_id(self, telegram_settings, mock_event_store, mock_runner):
+    async def test_processes_message_from_correct_chat_id(self, telegram_settings, mock_event_store, mock_runner, mock_transcriber):
         from brain.telegram_bot import TelegramBot
 
-        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
 
         update = MagicMock()
         update.effective_chat.id = 123456
@@ -66,10 +73,10 @@ class TestTelegramBotAuth:
 
 
 class TestTelegramBotMessageFlow:
-    async def test_stores_event_in_chromadb(self, telegram_settings, mock_event_store, mock_runner):
+    async def test_stores_event_in_chromadb(self, telegram_settings, mock_event_store, mock_runner, mock_transcriber):
         from brain.telegram_bot import TelegramBot
 
-        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
 
         update = MagicMock()
         update.effective_chat.id = 123456
@@ -84,7 +91,7 @@ class TestTelegramBotMessageFlow:
             source="telegram",
         )
 
-    async def test_sends_placeholder_then_streams(self, telegram_settings, mock_event_store, mock_runner):
+    async def test_sends_placeholder_then_streams(self, telegram_settings, mock_event_store, mock_runner, mock_transcriber):
         from brain.telegram_bot import TelegramBot
 
         mock_placeholder = MagicMock()
@@ -95,7 +102,7 @@ class TestTelegramBotMessageFlow:
             StreamEvent(kind="result", agent="homeassistant", content="The light is on."),
         ]))
 
-        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
 
         update = MagicMock()
         update.effective_chat.id = 123456
@@ -107,7 +114,7 @@ class TestTelegramBotMessageFlow:
         update.message.reply_text.assert_called_once_with("Thinking...")
         mock_placeholder.edit_text.assert_called_with("The light is on.")
 
-    async def test_replies_with_sorry_on_stream_failure(self, telegram_settings, mock_event_store, mock_runner):
+    async def test_replies_with_sorry_on_stream_failure(self, telegram_settings, mock_event_store, mock_runner, mock_transcriber):
         from brain.telegram_bot import TelegramBot
 
         async def _failing_stream(state):
@@ -119,7 +126,7 @@ class TestTelegramBotMessageFlow:
         mock_placeholder = MagicMock()
         mock_placeholder.edit_text = AsyncMock()
 
-        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
 
         update = MagicMock()
         update.effective_chat.id = 123456
@@ -132,7 +139,7 @@ class TestTelegramBotMessageFlow:
             "Sorry, something went wrong. Please try again."
         )
 
-    async def test_replies_with_sorry_when_no_result_event(self, telegram_settings, mock_event_store, mock_runner):
+    async def test_replies_with_sorry_when_no_result_event(self, telegram_settings, mock_event_store, mock_runner, mock_transcriber):
         from brain.telegram_bot import TelegramBot
 
         mock_runner.stream = MagicMock(return_value=_async_iter([
@@ -142,7 +149,7 @@ class TestTelegramBotMessageFlow:
         mock_placeholder = MagicMock()
         mock_placeholder.edit_text = AsyncMock()
 
-        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner)
+        bot = TelegramBot(telegram_settings, mock_event_store, mock_runner, mock_transcriber)
 
         update = MagicMock()
         update.effective_chat.id = 123456
