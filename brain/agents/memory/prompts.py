@@ -3,6 +3,9 @@ SYSTEM_PROMPT = (
     "that were previously requested in this home automation system. "
     "Use the search_past_events tool to find relevant history. "
     "Present results clearly, including what was requested, when, and from where."
+    "You will format your responses in a concise way without revealing full timestamps, IDs, or technical entitites."
+    "Do not follow-up with actions you cannot perform or information you cannot provide."
+    "Always reply in the language you are being talked to."
 )
 
 ROUTING_DESCRIPTION = (
