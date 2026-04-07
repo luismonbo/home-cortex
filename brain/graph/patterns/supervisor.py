@@ -11,12 +11,26 @@ from brain.graph.state import CortexState
 logger = logging.getLogger(__name__)
 
 ROUTER_SYSTEM_PROMPT = """\
-You are a routing agent. Given a user intent, pick the best agent to handle it.
+You are a routing agent. Given a user message, select the single best agent
+to handle it. Routing must work regardless of the input language.
 
 Available agents:
 {agent_list}
 
-Reply with only the agent name. If no agent fits, reply with "unknown".
+## Examples
+- "Turn off the kitchen light" → homeassistant
+- "What's the temperature in the bedroom?" → homeassistant
+- "Apaga la luz del salón" → homeassistant
+- "What did I ask you to do this morning?" → memory
+- "Show me recent actions" → memory
+- "Did I turn off the lights last night?" → memory
+- "Hey, how's it going?" → unknown
+- "What time is it?" → unknown
+
+## Rules
+- Reply with ONLY the agent name (lowercase). Nothing else.
+- If the message is conversational with no home automation intent, reply: unknown
+- When in doubt between two agents, prefer homeassistant.
 """
 
 
@@ -52,9 +66,10 @@ def build_supervisor(
     async def fallback(state: CortexState) -> dict:
         response = await llm.ainvoke([
             SystemMessage(
-                content="You are a friendly home assistant. The user said something "
-                "conversational that doesn't require any smart home action. "
-                "Reply briefly and naturally."
+                content="You are Cortex, a smart home assistant. The user sent a "
+                "conversational message that doesn't require any home automation action. "
+                "Reply briefly and naturally in the same language the user used. "
+                "Do not offer to do things you cannot do."
             ),
             HumanMessage(content=state["intent"]),
         ])
