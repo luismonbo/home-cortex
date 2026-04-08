@@ -94,6 +94,8 @@ class TestEventStoreStoreEvent:
             assert call_kwargs["metadatas"][0]["intent"] == "toggle_light"
             assert call_kwargs["metadatas"][0]["source"] == "voice"
             assert "timestamp" in call_kwargs["metadatas"][0]
+            assert "timestamp_unix" in call_kwargs["metadatas"][0]
+            assert isinstance(call_kwargs["metadatas"][0]["timestamp_unix"], float)
 
 
 class TestEventStoreSearchEvents:
@@ -132,6 +134,7 @@ class TestEventStoreSearchEvents:
             assert results == []
 
     def test_search_events_filters_by_date_from(self, test_settings, mock_chroma_client, mock_collection):
+        from datetime import datetime, timezone
         mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]]}
 
         with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
@@ -141,13 +144,15 @@ class TestEventStoreSearchEvents:
             store = EventStore(test_settings)
             store.search_events("light", date_from="2026-04-07T00:00:00+00:00")
 
+            expected_unix = datetime.fromisoformat("2026-04-07T00:00:00+00:00").timestamp()
             mock_collection.query.assert_called_once_with(
                 query_texts=["light"],
                 n_results=5,
-                where={"timestamp": {"$gte": "2026-04-07T00:00:00+00:00"}},
+                where={"timestamp_unix": {"$gte": expected_unix}},
             )
 
     def test_search_events_filters_by_date_to(self, test_settings, mock_chroma_client, mock_collection):
+        from datetime import datetime, timezone
         mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]]}
 
         with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
@@ -157,13 +162,15 @@ class TestEventStoreSearchEvents:
             store = EventStore(test_settings)
             store.search_events("light", date_to="2026-04-07T23:59:59+00:00")
 
+            expected_unix = datetime.fromisoformat("2026-04-07T23:59:59+00:00").timestamp()
             mock_collection.query.assert_called_once_with(
                 query_texts=["light"],
                 n_results=5,
-                where={"timestamp": {"$lte": "2026-04-07T23:59:59+00:00"}},
+                where={"timestamp_unix": {"$lte": expected_unix}},
             )
 
     def test_search_events_filters_by_date_range(self, test_settings, mock_chroma_client, mock_collection):
+        from datetime import datetime, timezone
         mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]]}
 
         with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
@@ -177,11 +184,13 @@ class TestEventStoreSearchEvents:
                 date_to="2026-03-31T23:59:59+00:00",
             )
 
+            expected_from = datetime.fromisoformat("2026-03-01T00:00:00+00:00").timestamp()
+            expected_to = datetime.fromisoformat("2026-03-31T23:59:59+00:00").timestamp()
             mock_collection.query.assert_called_once_with(
                 query_texts=["light"],
                 n_results=5,
                 where={"$and": [
-                    {"timestamp": {"$gte": "2026-03-01T00:00:00+00:00"}},
-                    {"timestamp": {"$lte": "2026-03-31T23:59:59+00:00"}},
+                    {"timestamp_unix": {"$gte": expected_from}},
+                    {"timestamp_unix": {"$lte": expected_to}},
                 ]},
             )

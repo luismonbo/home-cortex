@@ -48,10 +48,12 @@ class EventStore:
     def store_event(self, intent: str, payload: dict[str, Any], source: str) -> str:
         event_id = str(uuid.uuid4())
         document = f"intent: {intent} | source: {source} | payload: {json.dumps(payload)}"
+        now = datetime.now(timezone.utc)
         metadata = {
             "intent": intent,
             "source": source,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": now.isoformat(),
+            "timestamp_unix": now.timestamp(),
         }
 
         self._collection.add(
@@ -72,11 +74,14 @@ class EventStore:
     ) -> list[dict[str, Any]]:
         where: dict[str, Any] | None = None
         if date_from and date_to:
-            where = {"$and": [{"timestamp": {"$gte": date_from}}, {"timestamp": {"$lte": date_to}}]}
+            where = {"$and": [
+                {"timestamp_unix": {"$gte": datetime.fromisoformat(date_from).timestamp()}},
+                {"timestamp_unix": {"$lte": datetime.fromisoformat(date_to).timestamp()}},
+            ]}
         elif date_from:
-            where = {"timestamp": {"$gte": date_from}}
+            where = {"timestamp_unix": {"$gte": datetime.fromisoformat(date_from).timestamp()}}
         elif date_to:
-            where = {"timestamp": {"$lte": date_to}}
+            where = {"timestamp_unix": {"$lte": datetime.fromisoformat(date_to).timestamp()}}
 
         results = self._collection.query(
             query_texts=[query],
