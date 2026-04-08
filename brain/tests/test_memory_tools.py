@@ -29,7 +29,7 @@ class TestSearchPastEvents:
     async def test_calls_search_events(self, tools, mock_event_store):
         search = tools[0]
         await search.ainvoke({"query": "bedroom light", "n_results": 3})
-        mock_event_store.search_events.assert_called_once_with("bedroom light", 3)
+        mock_event_store.search_events.assert_called_once_with("bedroom light", 3, None, None)
 
     async def test_returns_formatted_string(self, tools, mock_event_store):
         search = tools[0]
@@ -46,4 +46,22 @@ class TestSearchPastEvents:
     async def test_default_n_results(self, tools, mock_event_store):
         search = tools[0]
         await search.ainvoke({"query": "anything"})
-        mock_event_store.search_events.assert_called_once_with("anything", 5)
+        mock_event_store.search_events.assert_called_once_with("anything", 5, None, None)
+
+    async def test_passes_date_from(self, tools, mock_event_store):
+        search = tools[0]
+        await search.ainvoke({"query": "light", "date_from": "2026-04-07T00:00:00+00:00"})
+        mock_event_store.search_events.assert_called_once_with(
+            "light", 5, "2026-04-07T00:00:00+00:00", None
+        )
+
+    async def test_passes_date_range(self, tools, mock_event_store):
+        search = tools[0]
+        await search.ainvoke({
+            "query": "grow area",
+            "date_from": "2026-03-01T00:00:00+00:00",
+            "date_to": "2026-03-31T23:59:59+00:00",
+        })
+        mock_event_store.search_events.assert_called_once_with(
+            "grow area", 5, "2026-03-01T00:00:00+00:00", "2026-03-31T23:59:59+00:00"
+        )

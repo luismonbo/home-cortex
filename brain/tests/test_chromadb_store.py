@@ -111,7 +111,7 @@ class TestEventStoreSearchEvents:
             store = EventStore(test_settings)
             results = store.search_events("light", n_results=3)
 
-            mock_collection.query.assert_called_once_with(query_texts=["light"], n_results=3)
+            mock_collection.query.assert_called_once_with(query_texts=["light"], n_results=3, where=None)
             assert len(results) == 1
             assert results[0]["intent"] == "toggle_light"
 
@@ -130,3 +130,58 @@ class TestEventStoreSearchEvents:
             results = store.search_events("nonexistent")
 
             assert results == []
+
+    def test_search_events_filters_by_date_from(self, test_settings, mock_chroma_client, mock_collection):
+        mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]]}
+
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
+            from brain.chromadb_store import EventStore
+
+            store = EventStore(test_settings)
+            store.search_events("light", date_from="2026-04-07T00:00:00+00:00")
+
+            mock_collection.query.assert_called_once_with(
+                query_texts=["light"],
+                n_results=5,
+                where={"timestamp": {"$gte": "2026-04-07T00:00:00+00:00"}},
+            )
+
+    def test_search_events_filters_by_date_to(self, test_settings, mock_chroma_client, mock_collection):
+        mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]]}
+
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
+            from brain.chromadb_store import EventStore
+
+            store = EventStore(test_settings)
+            store.search_events("light", date_to="2026-04-07T23:59:59+00:00")
+
+            mock_collection.query.assert_called_once_with(
+                query_texts=["light"],
+                n_results=5,
+                where={"timestamp": {"$lte": "2026-04-07T23:59:59+00:00"}},
+            )
+
+    def test_search_events_filters_by_date_range(self, test_settings, mock_chroma_client, mock_collection):
+        mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]]}
+
+        with patch("brain.chromadb_store.chromadb.HttpClient", return_value=mock_chroma_client), \
+             patch("brain.chromadb_store.OpenAIEmbeddingFunction"):
+            from brain.chromadb_store import EventStore
+
+            store = EventStore(test_settings)
+            store.search_events(
+                "light",
+                date_from="2026-03-01T00:00:00+00:00",
+                date_to="2026-03-31T23:59:59+00:00",
+            )
+
+            mock_collection.query.assert_called_once_with(
+                query_texts=["light"],
+                n_results=5,
+                where={"$and": [
+                    {"timestamp": {"$gte": "2026-03-01T00:00:00+00:00"}},
+                    {"timestamp": {"$lte": "2026-03-31T23:59:59+00:00"}},
+                ]},
+            )

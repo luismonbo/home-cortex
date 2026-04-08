@@ -63,8 +63,26 @@ class EventStore:
         logger.info("Stored event %s (intent=%s, source=%s)", event_id, intent, source)
         return event_id
 
-    def search_events(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:
-        results = self._collection.query(query_texts=[query], n_results=n_results)
+    def search_events(
+        self,
+        query: str,
+        n_results: int = 5,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[dict[str, Any]]:
+        where: dict[str, Any] | None = None
+        if date_from and date_to:
+            where = {"$and": [{"timestamp": {"$gte": date_from}}, {"timestamp": {"$lte": date_to}}]}
+        elif date_from:
+            where = {"timestamp": {"$gte": date_from}}
+        elif date_to:
+            where = {"timestamp": {"$lte": date_to}}
+
+        results = self._collection.query(
+            query_texts=[query],
+            n_results=n_results,
+            where=where,
+        )
         if not results["ids"]:
             return []
         return [

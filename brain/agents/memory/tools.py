@@ -5,9 +5,23 @@ from brain.chromadb_store import EventStore
 
 def make_tools(event_store: EventStore) -> list:
     @tool
-    async def search_past_events(query: str, n_results: int = 5) -> str:
-        """Search past webhook events by semantic similarity to the query."""
-        results = event_store.search_events(query, n_results)
+    async def search_past_events(
+        query: str,
+        n_results: int = 5,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> str:
+        """Search past webhook events by semantic similarity to the query.
+
+        Args:
+            query: Natural language description of what to look for.
+            n_results: Maximum number of results to return (default 5).
+            date_from: Optional ISO 8601 UTC datetime to filter events on or after
+                       this time (e.g. "2026-04-07T00:00:00+00:00").
+            date_to: Optional ISO 8601 UTC datetime to filter events on or before
+                     this time (e.g. "2026-04-07T23:59:59+00:00").
+        """
+        results = event_store.search_events(query, n_results, date_from, date_to)
         if not results:
             return "No past events found matching your query."
         lines = []
