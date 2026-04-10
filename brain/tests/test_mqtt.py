@@ -80,6 +80,66 @@ class TestMQTTListenerMessages:
             assert "test_switch" in caplog.text
             assert "on" in caplog.text
 
+    async def test_message_handler_called_with_topic_and_payload(self, test_settings):
+        fake_message = MagicMock()
+        fake_message.topic = "homeassistant/sensor/grow_temperature/state"
+        fake_message.payload = b"25.3"
+
+        received = asyncio.Event()
+        mock_client = AsyncMock()
+        mock_client.subscribe = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        async def fake_messages(_self):
+            yield fake_message
+            received.set()
+            await asyncio.Event().wait()
+
+        mock_client.messages.__aiter__ = fake_messages
+
+        handler = AsyncMock()
+        listener = MQTTListener(test_settings, message_handler=handler)
+
+        with patch("brain.mqtt.aiomqtt.Client", return_value=mock_client):
+            task = asyncio.create_task(listener._listen_forever())
+            await received.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        handler.assert_called_once_with(
+            "homeassistant/sensor/grow_temperature/state", "25.3"
+        )
+
+    async def test_no_message_handler_does_not_raise(self, test_settings):
+        fake_message = MagicMock()
+        fake_message.topic = "homeassistant/sensor/grow_temperature/state"
+        fake_message.payload = b"25.3"
+
+        received = asyncio.Event()
+        mock_client = AsyncMock()
+        mock_client.subscribe = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        async def fake_messages(_self):
+            yield fake_message
+            received.set()
+            await asyncio.Event().wait()
+
+        mock_client.messages.__aiter__ = fake_messages
+
+        listener = MQTTListener(test_settings)  # no handler
+
+        with patch("brain.mqtt.aiomqtt.Client", return_value=mock_client):
+            task = asyncio.create_task(listener._listen_forever())
+            await received.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        # No assertion needed — just verifying it doesn't raise
+
     async def test_reconnects_on_mqtt_error(self, test_settings, caplog):
         from aiomqtt import MqttError
 

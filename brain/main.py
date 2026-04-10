@@ -11,6 +11,7 @@ from brain.config import settings
 from brain.graph.factory import build_supervisor_graph
 from brain.graph.runner import GraphRunner
 from brain.mqtt import MQTTListener
+from brain.services.alert_monitor import AlertMonitor, load_alert_rules
 from brain.routers.voice import router as voice_router
 from brain.routers.webhooks import router as webhooks_router
 from brain.services.ha_client import HAClient
@@ -58,7 +59,9 @@ async def lifespan(app: FastAPI):
     runner = GraphRunner(graph, notifier)
     app.state.runner = runner
 
-    mqtt_listener = MQTTListener(settings)
+    alert_rules = load_alert_rules(settings.alerts_file)
+    alert_monitor = AlertMonitor(alert_rules, notifier)
+    mqtt_listener = MQTTListener(settings, message_handler=alert_monitor.handle_message)
     await mqtt_listener.start()
 
     if settings.telegram_bot_token:

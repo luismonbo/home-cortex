@@ -1,0 +1,24 @@
+# Alert rules for home-cortex.
+# Each rule watches one MQTT topic and fires a Telegram notification when the
+# condition is met. Supported conditions: >, <, >=, <=, ==
+# Use {value:.1f} in the message to include the sensor reading.
+# Verify MQTT topics against live traffic (e.g. MQTT Explorer) if unsure.
+
+rules:
+  - topic: "homeassistant/sensor/temp_humidity_sensor_temperature/state"
+    condition: ">"
+    threshold: 26
+    message: "Grow area temperature too high: {value:.1f}°C (max 26°C)"
+    cooldown_minutes: 30
+
+  - topic: "homeassistant/sensor/temp_humidity_sensor_temperature/state"
+    condition: "<"
+    threshold: 18
+    message: "Grow area temperature too low: {value:.1f}°C (min 18°C)"
+    cooldown_minutes: 30
+
+  - topic: "homeassistant/sensor/temp_humidity_sensor_soil_moisture/state"
+    condition: "<"
+    threshold: 20
+    message: "Grow area soil moisture too low: {value:.1f}% (min 20%)"
+    cooldown_minutes: 30

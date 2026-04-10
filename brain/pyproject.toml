@@ -16,6 +16,7 @@ dependencies = [
     "langchain==1.2.12",
     "python-telegram-bot",
     "openai",
+    "pyyaml",
 ]
 
 [project.optional-dependencies]

@@ -428,6 +428,7 @@ dependencies = [
     { name = "openai" },
     { name = "pydantic-settings" },
     { name = "python-telegram-bot" },
+    { name = "pyyaml" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -460,6 +461,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "python-telegram-bot" },
+    { name = "pyyaml" },
     { name = "uvicorn", extras = ["standard"] },
 ]
 

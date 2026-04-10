@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 
 import aiomqtt
 
@@ -13,8 +14,13 @@ RECONNECT_INTERVAL = 5
 class MQTTListener:
     """Background MQTT subscriber that reconnects automatically."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        message_handler: Callable[[str, str], Awaitable[None]] | None = None,
+    ) -> None:
         self.settings = settings
+        self._message_handler = message_handler
         self._task: asyncio.Task | None = None
 
     async def start(self) -> None:
@@ -46,11 +52,10 @@ class MQTTListener:
                     await client.subscribe(self.settings.mqtt_topic)
                     logger.info("Subscribed to %s", self.settings.mqtt_topic)
                     async for message in client.messages:
-                        logger.info(
-                            "[%s] %s",
-                            message.topic,
-                            message.payload.decode(errors="replace"),
-                        )
+                        payload = message.payload.decode(errors="replace")
+                        logger.info("[%s] %s", message.topic, payload)
+                        if self._message_handler:
+                            await self._message_handler(str(message.topic), payload)
             except aiomqtt.MqttError as e:
                 logger.warning(
                     "Connection lost (%s). Reconnecting in %ds...",

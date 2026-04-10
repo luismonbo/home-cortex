@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     telegram_bot_token: str = ""
     telegram_chat_id: int = 0
+    alerts_file: str = "alerts.yaml"
 
 
 settings = Settings()
